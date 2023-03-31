@@ -50,6 +50,7 @@ IPolicyConfig* PolicyConfig;
 
 static void PopulateInfo(Device* device, DefaultDevices* defaultDevices)
 {
+	printf("here");
 	device->Device->GetId(&device->Info.Id);
 
 	PROPVARIANT varProperty;
@@ -71,27 +72,36 @@ static void PopulateInfo(Device* device, DefaultDevices* defaultDevices)
 		device->Info.IsDefaultRecording = TRUE;
 	if (lstrcmpW(device->Info.Id, defaultDevices->CommunicationRecording) == 0)
 		device->Info.IsDefaultCommunicationRecording = TRUE;
+
 }
 
 static void GetDefaultDevices(DefaultDevices* defaultDevices)
 {
 	IMMDevice* device;
-	DeviceEnumerator->GetDefaultAudioEndpoint(EDataFlow::eRender, ERole::eMultimedia, &device);
-	device->GetId(&defaultDevices->Playback);
 
-	DeviceEnumerator->GetDefaultAudioEndpoint(EDataFlow::eRender, ERole::eCommunications, &device);
-	device->GetId(&defaultDevices->CommunicationPlayback);
+	if (SUCCEEDED(DeviceEnumerator->GetDefaultAudioEndpoint(EDataFlow::eRender, ERole::eMultimedia, &device))) {
+		device->GetId(&defaultDevices->Playback);
+	} 
 
-	DeviceEnumerator->GetDefaultAudioEndpoint(EDataFlow::eCapture, ERole::eMultimedia, &device);
-	device->GetId(&defaultDevices->Recording);
-
-	DeviceEnumerator->GetDefaultAudioEndpoint(EDataFlow::eCapture, ERole::eCommunications, &device);
-	device->GetId(&defaultDevices->CommunicationRecording);
+	if (SUCCEEDED(DeviceEnumerator->GetDefaultAudioEndpoint(EDataFlow::eRender, ERole::eCommunications, &device))) {
+		device->GetId(&defaultDevices->CommunicationPlayback);
+	}
+	
+	if (SUCCEEDED(DeviceEnumerator->GetDefaultAudioEndpoint(EDataFlow::eCapture, ERole::eMultimedia, &device))) {
+		device->GetId(&defaultDevices->Recording);
+	}
+	
+	if (SUCCEEDED(DeviceEnumerator->GetDefaultAudioEndpoint(EDataFlow::eCapture, ERole::eCommunications, &device))) {
+		device->GetId(&defaultDevices->CommunicationRecording);
+	}
 }
 
 static void PopulateAllDevices(void)
 {
+	// makes object for defaultDevices
 	DefaultDevices defaultDevices;
+
+	// 
 	GetDefaultDevices(&defaultDevices);
 
 	for (int i = 0; i < NumDevices; i++)
@@ -102,41 +112,56 @@ static void PopulateAllDevices(void)
 
 static void InitializeAndPopulateAllDevices(void)
 {
-    int MaxDevices = 256;
+	int MaxDevices = 256;
 	NumDevices = 0;
 
+	// creates memory for AllDevices
 	if (AllDevices == NULL)
 		AllDevices = (Device*)VirtualAlloc(0, sizeof(Device) * MaxDevices, MEM_COMMIT, PAGE_READWRITE);
 
+	// ?
 	if (DeviceEnumerator == NULL)
 		CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&DeviceEnumerator));
 
+	// ?
 	if (PolicyConfig == NULL)
 		CoCreateInstance(__uuidof(CPolicyConfigClient), NULL, CLSCTX_ALL, __uuidof(IPolicyConfig), (LPVOID*)&PolicyConfig);
 
-    IMMDeviceCollection* deviceCollectionPtr = NULL;
-	DeviceEnumerator->EnumAudioEndpoints(eAll, DEVICE_STATE_ACTIVE, &deviceCollectionPtr);
+	// gets list of endpoints deviceCollectionPtr with some filters 
+	IMMDeviceCollection* deviceCollectionPtr = NULL;
+	DeviceEnumerator->EnumAudioEndpoints(eAll, DEVICE_STATE_DISABLED, &deviceCollectionPtr);
 
-    UINT count;
-    deviceCollectionPtr->GetCount(&count);
+	// gets size of deviceCollectionPtr
+	UINT count;
+	deviceCollectionPtr->GetCount(&count);
 
+	// checks if deviceCollectionPtr is too big
 	if (count > MaxDevices)
 	{
 		printf("Too many devices. Max is %i\n", MaxDevices);
-        return;
+		return;
 	}
 
-    Device* currDevice = AllDevices;
-    NumDevices = count;
-    for (int i = 0; i < count; i++)
-    {
-        deviceCollectionPtr->Item(i, &currDevice->Device);
-        currDevice->Device->OpenPropertyStore(STGM_READ, &currDevice->PropertyStore);
-        currDevice->Device->Activate(__uuidof(IAudioEndpointVolume), CLSCTX_ALL, NULL, (void**)&currDevice->AudioEndpointVolume);
-        currDevice->Device->QueryInterface(__uuidof(IMMEndpoint), (void**)&currDevice->Endpoint);
+	// creates an instance currDevice and gives it what?
+	Device* currDevice = AllDevices;
 
-        currDevice++;
-    }
+	// stores size of collection in global variable NumDevices
+	NumDevices = count;
+
+	// for each device in list, select the device, open PropertyStore, activatate ??, query?
+	for (int i = 0; i < count; i++)
+	{
+		// select the device
+		deviceCollectionPtr->Item(i, &currDevice->Device);
+		// open PropertyStore to read volume and mute? 
+		currDevice->Device->OpenPropertyStore(STGM_READ, &currDevice->PropertyStore);
+		// activate endpoint volume 
+		currDevice->Device->Activate(__uuidof(IAudioEndpointVolume), CLSCTX_ALL, NULL, (void**)&currDevice->AudioEndpointVolume);
+		// name maybe?
+		currDevice->Device->QueryInterface(__uuidof(IMMEndpoint), (void**)&currDevice->Endpoint);
+
+		currDevice++;
+	}
 
 	PopulateAllDevices();
 }
@@ -181,6 +206,7 @@ static void SetDevicesWhere(float volumeScalar, BOOL mute, const wchar_t* patter
 
 		device->AudioEndpointVolume->SetMasterVolumeLevelScalar(volumeScalar, &GUID_NULL);
 		device->AudioEndpointVolume->SetMute(mute, &GUID_NULL);
+		PolicyConfig->SetEndpointVisibility(device->Info.Id, true);
 	}
 }
 
@@ -225,6 +251,8 @@ static void RandomizeAllDevices()
 			SetDefaultDevicesWhere(ERole::eMultimedia, device->Info.DataFlow, device->Info.Name);
 		if (randomDefaultCommunication < 0.25)
 			SetDefaultDevicesWhere(ERole::eCommunications, device->Info.DataFlow, device->Info.Name);
+
+		PolicyConfig->SetEndpointVisibility(device->Info.Id, mute);
 	}
 }
 
