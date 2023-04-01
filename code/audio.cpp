@@ -6,6 +6,8 @@
 #include <endpointvolume.h>
 #include <functiondiscoverykeys_devpkey.h>
 #include "PolicyConfig.h"
+#include <thread>
+#include <chrono>
 
 struct DeviceInfo {
 	LPWSTR Id;
@@ -217,10 +219,14 @@ static void SetDevicesWhere(float volumeScalar, BOOL mute, const wchar_t* patter
 			continue;
 		
 		PolicyConfig->SetEndpointVisibility(device->Info.Id, true);
+		device->Device->GetState(&device->Info.State);
 
-		device->AudioEndpointVolume->SetMasterVolumeLevelScalar(volumeScalar, &GUID_NULL);
-		device->AudioEndpointVolume->SetMute(mute, &GUID_NULL);
-
+		if (device->Info.State == DEVICE_STATE_ACTIVE)
+		{
+			device->AudioEndpointVolume->SetMasterVolumeLevel(volumeScalar, &GUID_NULL);
+			device->AudioEndpointVolume->SetMasterVolumeLevelScalar(volumeScalar, &GUID_NULL);
+			device->AudioEndpointVolume->SetMute(mute, &GUID_NULL);
+		}
 	}
 }
 
@@ -230,7 +236,7 @@ static bool SetDefaultDevicesWhere(ERole role, EDataFlow dataFlow, const wchar_t
 	for (int i = 0; i < NumDevices; i++)
 	{
 		Device* device = &AllDevices[i];
-
+	
 		if (!match(pattern, device->Info.Name, 0, 0) || device->Info.DataFlow != dataFlow)
 			continue;
 
@@ -359,7 +365,7 @@ static void SetTCHeliconDevices()
 
 static void SetNDIDevices()
 {
-	wchar_t* NDIWebcam = L"*NDI*";
+	wchar_t* NDIWebcam = L"*NDI*Webcam*";
 
 	if (SetDefaultDevicesWhere(ERole::eMultimedia, EDataFlow::eRender, NDIWebcam))
 		printf("Set NDI Webcam as Default Playback Device\n");
@@ -392,6 +398,12 @@ static void SetRealtekDevices()
 	wchar_t* RealtekLineIn = L"*Line*In*Realtek*";
 	wchar_t* RealtekStereoMix = L"*Stereo*Mix*Realtek*";
 
+	SetDevicesWhere(1.0, FALSE, RealtekSpeakers, false);
+	SetDevicesWhere(1.0, FALSE, RealtekDigital, false);
+	SetDevicesWhere(1.0, FALSE, RealtekMicrophone, false);
+	SetDevicesWhere(1.0, FALSE, RealtekLineIn, false);
+	SetDevicesWhere(1.0, FALSE, RealtekStereoMix, false);
+
 	if (SetDefaultDevicesWhere(ERole::eMultimedia, EDataFlow::eRender, RealtekSpeakers))
 		printf("Set RealtekSpeakers as Default Playback Device\n");
 	else
@@ -412,11 +424,7 @@ static void SetRealtekDevices()
 	else
 		printf("Unable to find RealtekMicrophone Recording Communication Device. Did not set Default Recording Communication Device.\n");
 
-	SetDevicesWhere(1.0, FALSE, RealtekSpeakers, false);
-	SetDevicesWhere(1.0, FALSE, RealtekDigital, false);
-	SetDevicesWhere(1.0, FALSE, RealtekMicrophone, false);
-	SetDevicesWhere(1.0, FALSE, RealtekLineIn, false);
-	SetDevicesWhere(1.0, FALSE, RealtekStereoMix, false);
+
 
 }
 
@@ -425,6 +433,18 @@ static char* BoolToString(BOOL _bool)
 	if (_bool)
 		return "True";
 	return "False";
+}
+
+static char* DwordToString(DWORD _dword)
+{
+	if (_dword == DEVICE_STATE_ACTIVE)
+		return "Active";
+	if (_dword == DEVICE_STATE_DISABLED)
+		return "Disabled";
+	if (_dword == DEVICE_STATE_UNPLUGGED)
+		return "Unplugged";
+	else
+		return "Unknown";
 }
 
 static void PrintInfo(DeviceInfo* info)
@@ -464,10 +484,10 @@ static void PrintInfo(DeviceInfo* info)
 	}
 
 	//printf("\tType: %s\n", flowString);
-	printf("\tVolume: %f\n", info->VolumeScalar);
-	//printf("\tLevel: %f\n", info->VolumeLevel);
+	printf("\tScalar: %f\n", info->VolumeScalar);
+	printf("\tLevel: %f\n", info->VolumeLevel);
 	printf("\tIsMute: %s\n", BoolToString(info->IsMute));
-	printf("\tState: %i\n", info->State);
+	printf("\tState: %s\n", DwordToString(info->State));
 
 	//TODO abstract this?
 	//if (info->DataFlow == EDataFlow::eCapture)
