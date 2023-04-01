@@ -6,10 +6,6 @@
 #include <endpointvolume.h>
 #include <functiondiscoverykeys_devpkey.h>
 #include "PolicyConfig.h"
-#include <thread>
-#include <chrono>
-#include <iomanip>
-#include <iostream>
 
 struct DeviceInfo {
 	LPWSTR Id;
@@ -535,6 +531,19 @@ int main(int numArguments, char* arguments[])
 	wchar_t clause[100];
 	bool invalid = false;
 
+	HANDLE  hConsole;
+	int k = 9;
+
+	hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+	//SetConsoleTextAttribute(hConsole, k);
+
+	// you can loop k higher to see more color choices
+	//for (k = 1; k < 255; k++)
+	//{
+	//	SetConsoleTextAttribute(hConsole, k);
+	//	printf("%3d  %s\n", k, "I want to be nice today!");
+	//}
+
 	if (numArguments == 2)
 	{
 		if (strcmp(arguments[1], "-e") == 0)
@@ -631,6 +640,8 @@ int main(int numArguments, char* arguments[])
 		printf("\n* -> Default Device\n");
 		printf("** -> Default Communication Device\n");
 	}
+
+
 
 	return 0;
 }
