@@ -22,6 +22,8 @@ struct DeviceInfo {
 	BOOL IsDefaultCommunicationPlayback;
 	BOOL IsDefaultRecording;
 	BOOL IsDefaultCommunicationRecording;
+	DWORD State;
+	BOOL IsUnplugged;
 };
 
 struct Device
@@ -50,28 +52,36 @@ IPolicyConfig* PolicyConfig;
 
 static void PopulateInfo(Device* device, DefaultDevices* defaultDevices)
 {
-	printf("here");
+	//printf("POPULATE INFO\n");
+
+
 	device->Device->GetId(&device->Info.Id);
+	//device->Device->GetState(&device->Info.State);
 
-	PROPVARIANT varProperty;
-	device->PropertyStore->GetValue(PKEY_Device_FriendlyName, &varProperty);
-	device->Info.Name = varProperty.pwszVal;
+	//if (device->Info.State == DEVICE_STATE_DISABLED) {
 
-	device->Endpoint->GetDataFlow(&device->Info.DataFlow);
+	//	printf("not enabled\n");
+	//}
 
-	device->AudioEndpointVolume->GetMasterVolumeLevelScalar(&device->Info.VolumeScalar);
-	device->AudioEndpointVolume->GetMasterVolumeLevel(&device->Info.VolumeLevel);
-	device->AudioEndpointVolume->GetMute(&device->Info.IsMute);
+	//PROPVARIANT varProperty;
+	//device->PropertyStore->GetValue(PKEY_Device_FriendlyName, &varProperty);
+	//device->Info.Name = varProperty.pwszVal;
 
-	if (lstrcmpW(device->Info.Id, defaultDevices->Playback) == 0)
-		device->Info.IsDefaultPlayback = TRUE;
-	if (lstrcmpW(device->Info.Id, defaultDevices->CommunicationPlayback) == 0)
-		device->Info.IsDefaultCommunicationPlayback = TRUE;
+	//device->Endpoint->GetDataFlow(&device->Info.DataFlow);
 
-	if (lstrcmpW(device->Info.Id, defaultDevices->Recording) == 0)
-		device->Info.IsDefaultRecording = TRUE;
-	if (lstrcmpW(device->Info.Id, defaultDevices->CommunicationRecording) == 0)
-		device->Info.IsDefaultCommunicationRecording = TRUE;
+	//device->AudioEndpointVolume->GetMasterVolumeLevelScalar(&device->Info.VolumeScalar);
+	//device->AudioEndpointVolume->GetMasterVolumeLevel(&device->Info.VolumeLevel);
+	//device->AudioEndpointVolume->GetMute(&device->Info.IsMute);
+
+	//if (lstrcmpW(device->Info.Id, defaultDevices->Playback) == 0)
+	//	device->Info.IsDefaultPlayback = TRUE;
+	//if (lstrcmpW(device->Info.Id, defaultDevices->CommunicationPlayback) == 0)
+	//	device->Info.IsDefaultCommunicationPlayback = TRUE;
+
+	//if (lstrcmpW(device->Info.Id, defaultDevices->Recording) == 0)
+	//	device->Info.IsDefaultRecording = TRUE;
+	//if (lstrcmpW(device->Info.Id, defaultDevices->CommunicationRecording) == 0)
+	//	device->Info.IsDefaultCommunicationRecording = TRUE;
 
 }
 
@@ -101,12 +111,15 @@ static void PopulateAllDevices(void)
 	// makes object for defaultDevices
 	DefaultDevices defaultDevices;
 
-	// 
 	GetDefaultDevices(&defaultDevices);
+
+	//printf("numDevices: %i\n", NumDevices);
+	
 
 	for (int i = 0; i < NumDevices; i++)
 	{
 		PopulateInfo(&AllDevices[i], &defaultDevices);
+		printf("here\n");
 	}
 }
 
@@ -129,11 +142,13 @@ static void InitializeAndPopulateAllDevices(void)
 
 	// gets list of endpoints deviceCollectionPtr with some filters 
 	IMMDeviceCollection* deviceCollectionPtr = NULL;
-	DeviceEnumerator->EnumAudioEndpoints(eAll, DEVICE_STATE_DISABLED, &deviceCollectionPtr);
+	DeviceEnumerator->EnumAudioEndpoints(eAll, DEVICE_STATE_ACTIVE | DEVICE_STATE_DISABLED, &deviceCollectionPtr);
 
 	// gets size of deviceCollectionPtr
 	UINT count;
 	deviceCollectionPtr->GetCount(&count);
+
+	printf("devices count: %i\n", count);
 
 	// checks if deviceCollectionPtr is too big
 	if (count > MaxDevices)
@@ -148,7 +163,7 @@ static void InitializeAndPopulateAllDevices(void)
 	// stores size of collection in global variable NumDevices
 	NumDevices = count;
 
-	// for each device in list, select the device, open PropertyStore, activatate ??, query?
+	// for each device in list, select the device, open PropertyStore, activate ??, query?
 	for (int i = 0; i < count; i++)
 	{
 		// select the device
@@ -206,7 +221,6 @@ static void SetDevicesWhere(float volumeScalar, BOOL mute, const wchar_t* patter
 
 		device->AudioEndpointVolume->SetMasterVolumeLevelScalar(volumeScalar, &GUID_NULL);
 		device->AudioEndpointVolume->SetMute(mute, &GUID_NULL);
-		PolicyConfig->SetEndpointVisibility(device->Info.Id, true);
 	}
 }
 
@@ -226,6 +240,17 @@ static bool SetDefaultDevicesWhere(ERole role, EDataFlow dataFlow, const wchar_t
 	}
 
 	return flag;
+}
+
+static void EnableDevices() {
+	printf("Enable Devices:\n");
+
+	for (int i = 0; i < NumDevices; i++)
+	{
+		Device* device = &AllDevices[i];
+		PolicyConfig->SetEndpointVisibility(device->Info.Id, true);
+	}
+	
 }
 
 static void RandomizeAllDevices()
@@ -382,7 +407,11 @@ int main(int numArguments, char* arguments[])
 
 	if (numArguments == 2)
 	{
-		if (strcmp(arguments[1], "-l") == 0)
+		if (strcmp(arguments[1], "-e") == 0)
+		{
+			EnableDevices();
+		}
+		else if (strcmp(arguments[1], "-l") == 0)
 		{
 			PrintAllDevices();
 		}
