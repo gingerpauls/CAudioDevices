@@ -8,6 +8,8 @@
 #include "PolicyConfig.h"
 #include <thread>
 #include <chrono>
+#include <iomanip>
+#include <iostream>
 
 struct DeviceInfo {
 	LPWSTR Id;
@@ -432,8 +434,8 @@ static void SetRealtekDevices()
 static char* BoolToString(BOOL _bool)
 {
 	if (_bool)
-		return "True";
-	return "False";
+		return "Muted";
+	return "Unmuted";
 }
 
 static char* DwordToString(DWORD _dword)
@@ -485,10 +487,10 @@ static void PrintInfo(DeviceInfo* info)
 	}
 
 	//printf("\tType: %s\n", flowString);
-	printf("\tScalar: %f\n", info->VolumeScalar);
-	printf("\tLevel: %f\n", info->VolumeLevel);
-	printf("\tIsMute: %s\n", BoolToString(info->IsMute));
-	printf("\tState: %s\n", DwordToString(info->State));
+	printf("\tScalar (Volume): %.0f\n", info->VolumeScalar * 100);
+	printf("\tLevel: %.2f\n", info->VolumeLevel);
+	printf("\t%s\n", BoolToString(info->IsMute));
+	printf("\t%s\n", DwordToString(info->State));
 
 	//TODO abstract this?
 	//if (info->DataFlow == EDataFlow::eCapture)
@@ -623,9 +625,11 @@ int main(int numArguments, char* arguments[])
 		printf(" -mn <clause>\tMute and 0 volume all devices NOT matching given clause.\n");
 		printf("\n");
 		printf(" -Astro\t\tSet Default devices to expected Astro devices.\n");
-		printf(" -Realtek\t\tSet Default devices to expected Realtek devices.\n");
+		printf(" -Realtek\tSet Default devices to expected Realtek devices.\n");
 		printf(" -NDI\t\tSet Default devices to expected NDI devices.\n");
 		printf(" -TC\t\tSet Default devices to expected TC-Helicon devices.\n");
+		printf("\n* -> Default Device\n");
+		printf("** -> Default Communication Device\n");
 	}
 
 	return 0;
