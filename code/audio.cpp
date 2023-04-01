@@ -62,8 +62,6 @@ static void PopulateInfo(Device* device, DefaultDevices* defaultDevices)
 
 	if (device->Info.State == DEVICE_STATE_ACTIVE) {
 		//printf("DEVICE_STATE_ACTIVE\n");
-		
-
 
 		device->AudioEndpointVolume->GetMasterVolumeLevelScalar(&device->Info.VolumeScalar);
 		device->AudioEndpointVolume->GetMasterVolumeLevel(&device->Info.VolumeLevel);
@@ -91,36 +89,39 @@ static void PopulateInfo(Device* device, DefaultDevices* defaultDevices)
 
 static void GetDefaultDevices(DefaultDevices* defaultDevices)
 {
+	printf("\n");
+
 	IMMDevice* device;
 
 	if (SUCCEEDED(DeviceEnumerator->GetDefaultAudioEndpoint(EDataFlow::eRender, ERole::eMultimedia, &device))) {
 		device->GetId(&defaultDevices->Playback);
 	}
 	else {
-		printf("No defaultDevices->Playback\n");
+		printf("No Default Playback Device\n");
 	}
 
 	if (SUCCEEDED(DeviceEnumerator->GetDefaultAudioEndpoint(EDataFlow::eRender, ERole::eCommunications, &device))) {
 		device->GetId(&defaultDevices->CommunicationPlayback);
 	}
 	else {
-		printf("No defaultDevices->CommunicationPlayback\n");
+		printf("No Default Playback Communication Device\n");
 	}
 
-	
 	if (SUCCEEDED(DeviceEnumerator->GetDefaultAudioEndpoint(EDataFlow::eCapture, ERole::eMultimedia, &device))) {
 		device->GetId(&defaultDevices->Recording);
 	}
 	else {
-		printf("No defaultDevices->Recording\n");
+		printf("No Default Recording Device\n");
 	}
 	
 	if (SUCCEEDED(DeviceEnumerator->GetDefaultAudioEndpoint(EDataFlow::eCapture, ERole::eCommunications, &device))) {
 		device->GetId(&defaultDevices->CommunicationRecording);
 	}
 	else {
-		printf("No defaultDevices->CommunicationRecording\n");
+		printf("No Default Recording Communication Device\n");
 	}
+
+	printf("\n");
 }
 
 static void PopulateAllDevices(void)
@@ -214,9 +215,12 @@ static void SetDevicesWhere(float volumeScalar, BOOL mute, const wchar_t* patter
 
 		if (!isMatch)
 			continue;
+		
+		PolicyConfig->SetEndpointVisibility(device->Info.Id, true);
 
 		device->AudioEndpointVolume->SetMasterVolumeLevelScalar(volumeScalar, &GUID_NULL);
 		device->AudioEndpointVolume->SetMute(mute, &GUID_NULL);
+
 	}
 }
 
@@ -238,7 +242,7 @@ static bool SetDefaultDevicesWhere(ERole role, EDataFlow dataFlow, const wchar_t
 	return flag;
 }
 
-static void EnableDevices() 
+static void EnableAllDevices() 
 {
 	for (int i = 0; i < NumDevices; i++)
 	{
@@ -247,7 +251,7 @@ static void EnableDevices()
 	}
 }
 
-static void DisableDevices() 
+static void DisableAllDevices() 
 {
 	for (int i = 0; i < NumDevices; i++)
 	{
@@ -269,16 +273,25 @@ static void RandomizeAllDevices()
 		BOOL mute = randomMute >= 0.5;
 
 		float randomDefault = (float)rand() / (float)(RAND_MAX);
-
 		float randomDefaultCommunication = (float)rand() / (float)(RAND_MAX);
 
-		device->AudioEndpointVolume->SetMasterVolumeLevelScalar(randomScalar, &GUID_NULL);
-		device->AudioEndpointVolume->SetMute(mute, &GUID_NULL);
+		if (device->Info.State == DEVICE_STATE_ACTIVE) {
+			//printf("DEVICE_STATE_ACTIVE\n");
 
-		if (randomDefault < 0.25)
-			SetDefaultDevicesWhere(ERole::eMultimedia, device->Info.DataFlow, device->Info.Name);
-		if (randomDefaultCommunication < 0.25)
-			SetDefaultDevicesWhere(ERole::eCommunications, device->Info.DataFlow, device->Info.Name);
+			device->AudioEndpointVolume->SetMasterVolumeLevelScalar(randomScalar, &GUID_NULL);
+			device->AudioEndpointVolume->SetMute(mute, &GUID_NULL);
+			if (randomDefault < 0.25)
+				SetDefaultDevicesWhere(ERole::eMultimedia, device->Info.DataFlow, device->Info.Name);
+			if (randomDefaultCommunication < 0.25)
+				SetDefaultDevicesWhere(ERole::eCommunications, device->Info.DataFlow, device->Info.Name);
+		}
+
+		//if (device->Info.State == DEVICE_STATE_DISABLED) 
+			//printf("DEVICE_STATE_DISABLED\n");
+
+		//if (device->Info.State == DEVICE_STATE_UNPLUGGED) 
+			//printf("DEVICE_STATE_UNPLUGGED\n");
+
 
 		PolicyConfig->SetEndpointVisibility(device->Info.Id, mute);
 	}
@@ -344,6 +357,69 @@ static void SetTCHeliconDevices()
 	SetDevicesWhere(1.0, FALSE, TCmic, false);
 }
 
+static void SetNDIDevices()
+{
+	wchar_t* NDIWebcam = L"*NDI*";
+
+	if (SetDefaultDevicesWhere(ERole::eMultimedia, EDataFlow::eRender, NDIWebcam))
+		printf("Set NDI Webcam as Default Playback Device\n");
+	else
+		printf("Unable to find NDI Webcam Playback Device. Did not set Default Playback Device.\n");
+
+	if (SetDefaultDevicesWhere(ERole::eCommunications, EDataFlow::eRender, NDIWebcam))
+		printf("Set NDI Webcam as Default Playback Communication Device\n");
+	else
+		printf("Unable to find NDI Webcam Playback Communication Device. Did not set Default Playback Communication Device.\n");
+
+	if (SetDefaultDevicesWhere(ERole::eMultimedia, EDataFlow::eCapture, NDIWebcam))
+		printf("Set NDI Webcam as Default Recording Device\n");
+	else
+		printf("Unable to find NDI Webcam Recording Device. Did not set Default Recording Device.\n");
+
+	if (SetDefaultDevicesWhere(ERole::eCommunications, EDataFlow::eCapture, NDIWebcam))
+		printf("Set NDI Webcam as Default Recording Communication Device\n");
+	else
+		printf("Unable to find NDI Webcam Recording Communication Device. Did not set Default Recording Communication Device.\n");
+
+	SetDevicesWhere(1.0, FALSE, NDIWebcam, false);
+}
+
+static void SetRealtekDevices()
+{
+	wchar_t* RealtekSpeakers = L"*Speakers*Realtek*";
+	wchar_t* RealtekDigital = L"*Digital*Realtek*";
+	wchar_t* RealtekMicrophone = L"*Microphone*Realtek*";
+	wchar_t* RealtekLineIn = L"*Line*In*Realtek*";
+	wchar_t* RealtekStereoMix = L"*Stereo*Mix*Realtek*";
+
+	if (SetDefaultDevicesWhere(ERole::eMultimedia, EDataFlow::eRender, RealtekSpeakers))
+		printf("Set RealtekSpeakers as Default Playback Device\n");
+	else
+		printf("Unable to find RealtekSpeakers Playback Device. Did not set Default Playback Device.\n");
+
+	if (SetDefaultDevicesWhere(ERole::eCommunications, EDataFlow::eRender, RealtekSpeakers))
+		printf("Set RealtekSpeakers as Default Playback Communication Device\n");
+	else
+		printf("Unable to find RealtekSpeakers Playback Communication Device. Did not set Default Playback Communication Device.\n");
+
+	if (SetDefaultDevicesWhere(ERole::eMultimedia, EDataFlow::eCapture, RealtekMicrophone))
+		printf("Set RealtekMicrophone as Default Recording Device\n");
+	else
+		printf("Unable to find RealtekMicrophone Recording Device. Did not set Default Recording Device.\n");
+
+	if (SetDefaultDevicesWhere(ERole::eCommunications, EDataFlow::eCapture, RealtekMicrophone))
+		printf("Set RealtekMicrophone as Default Recording Communication Device\n");
+	else
+		printf("Unable to find RealtekMicrophone Recording Communication Device. Did not set Default Recording Communication Device.\n");
+
+	SetDevicesWhere(1.0, FALSE, RealtekSpeakers, false);
+	SetDevicesWhere(1.0, FALSE, RealtekDigital, false);
+	SetDevicesWhere(1.0, FALSE, RealtekMicrophone, false);
+	SetDevicesWhere(1.0, FALSE, RealtekLineIn, false);
+	SetDevicesWhere(1.0, FALSE, RealtekStereoMix, false);
+
+}
+
 static char* BoolToString(BOOL _bool)
 {
 	if (_bool)
@@ -353,31 +429,45 @@ static char* BoolToString(BOOL _bool)
 
 static void PrintInfo(DeviceInfo* info)
 {
-	printf("%ls", info->Name);
-
-	if (info->DataFlow == EDataFlow::eCapture)
-	{
-		printf(" * ");
-		printf(" ** \n");
-	}
-
-	if (info->DataFlow == EDataFlow::eRender)
-	{
-		printf(" * ");
-		printf(" ** \n");
-	}
-
-	printf("\tVolume: %f\n", info->VolumeScalar);
-	printf("\tLevel: %f\n", info->VolumeLevel);
-	printf("\tIsMute: %s\n", BoolToString(info->IsMute));
-	printf("\tState: %i\n", info->State);
-
 	char* flowString;
 	if (info->DataFlow == EDataFlow::eCapture)
 		flowString = "Recording";
 	if (info->DataFlow == EDataFlow::eRender)
 		flowString = "Playback";
-	printf("\tType: %s\n", flowString);
+
+	printf("%ls", info->Name);
+
+	if (info->DataFlow == EDataFlow::eCapture)
+	{
+		if (info->IsDefaultRecording) 
+			printf(" * ");
+		if (info->IsDefaultCommunicationRecording)
+			printf(" ** ");
+
+		printf("\n");
+
+		//printf("\tIsDefault: %s\n", BoolToString(info->IsDefaultRecording));
+		//printf("\tIsDefaultCommunication: %s\n", BoolToString(info->IsDefaultCommunicationRecording));
+	}
+
+	if (info->DataFlow == EDataFlow::eRender)
+	{
+		if (info->IsDefaultPlayback)
+			printf(" * ");
+		if (info->IsDefaultCommunicationPlayback)
+			printf(" ** ");
+
+		printf("\n");
+
+		//printf("\tIsDefault: %s\n", BoolToString(info->IsDefaultPlayback));
+		//printf("\tIsDefaultCommunication: %s\n", BoolToString(info->IsDefaultCommunicationPlayback));
+	}
+
+	//printf("\tType: %s\n", flowString);
+	printf("\tVolume: %f\n", info->VolumeScalar);
+	//printf("\tLevel: %f\n", info->VolumeLevel);
+	printf("\tIsMute: %s\n", BoolToString(info->IsMute));
+	printf("\tState: %i\n", info->State);
 
 	//TODO abstract this?
 	//if (info->DataFlow == EDataFlow::eCapture)
@@ -426,11 +516,11 @@ int main(int numArguments, char* arguments[])
 	{
 		if (strcmp(arguments[1], "-e") == 0)
 		{
-			EnableDevices();
+			EnableAllDevices();
 		}
 		else if (strcmp(arguments[1], "-d") == 0)
 		{
-			DisableDevices();
+			DisableAllDevices();
 		}
 		else if (strcmp(arguments[1], "-l") == 0)
 		{
@@ -447,6 +537,14 @@ int main(int numArguments, char* arguments[])
 		else if (strcmp(arguments[1], "-TC") == 0)
 		{
 			SetTCHeliconDevices();
+		}
+		else if (strcmp(arguments[1], "-NDI") == 0)
+		{
+			SetNDIDevices();
+		}
+		else if (strcmp(arguments[1], "-Realtek") == 0)
+		{
+			SetRealtekDevices();
 		}
 		else
 		{
@@ -490,9 +588,10 @@ int main(int numArguments, char* arguments[])
 	if (invalid)
 	{
 		printf("\nUnknown or missing arguments.\n\n");
+		printf(" -l\t\tList all playback and recording devices.\n");
 		printf(" -e\t\tEnable all playback and recording devices.\n");
 		printf(" -d\t\tDisable all playback and recording devices.\n");
-		printf(" -l\t\tList all playback and recording devices.\n");
+
 		printf("\n");
 		printf(" -r\t\tRandomize mute, volume, default, and default communication devices.\n");
 		printf("\n");
@@ -503,6 +602,8 @@ int main(int numArguments, char* arguments[])
 		printf(" -mn <clause>\tMute and 0 volume all devices NOT matching given clause.\n");
 		printf("\n");
 		printf(" -Astro\t\tSet Default devices to expected Astro devices.\n");
+		printf(" -Realtek\t\tSet Default devices to expected Realtek devices.\n");
+		printf(" -NDI\t\tSet Default devices to expected NDI devices.\n");
 		printf(" -TC\t\tSet Default devices to expected TC-Helicon devices.\n");
 	}
 
