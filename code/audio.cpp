@@ -55,7 +55,7 @@ static void PopulateInfo(Device* device, DefaultDevices* defaultDevices)
 	device->Device->GetState(&device->Info.State);
 
 	if (device->Info.State == DEVICE_STATE_ACTIVE) {
-		printf("DEVICE_STATE_ACTIVE\n");
+		//printf("DEVICE_STATE_ACTIVE\n");
 		PROPVARIANT varProperty;
 		device->PropertyStore->GetValue(PKEY_Device_FriendlyName, &varProperty);
 		device->Info.Name = varProperty.pwszVal;
@@ -77,39 +77,50 @@ static void PopulateInfo(Device* device, DefaultDevices* defaultDevices)
 			device->Info.IsDefaultCommunicationRecording = TRUE;
 	}
 		
-	if (device->Info.State == DEVICE_STATE_DISABLED)
-		printf("DEVICE_STATE_DISABLED\n");
-
-	if (device->Info.State == DEVICE_STATE_UNPLUGGED)
-		printf("DEVICE_STATE_UNPLUGGED\n");
+	if (device->Info.State == DEVICE_STATE_DISABLED) {
+		//printf("DEVICE_STATE_DISABLED\n");
+	}
+	if (device->Info.State == DEVICE_STATE_UNPLUGGED) {
+		//printf("DEVICE_STATE_UNPLUGGED\n");
+	}
 }
 
 static void GetDefaultDevices(DefaultDevices* defaultDevices)
 {
-	
 	IMMDevice* device;
 
 	if (SUCCEEDED(DeviceEnumerator->GetDefaultAudioEndpoint(EDataFlow::eRender, ERole::eMultimedia, &device))) {
 		device->GetId(&defaultDevices->Playback);
-	} 
+	}
+	else {
+		printf("No defaultDevices->Playback\n");
+	}
 
 	if (SUCCEEDED(DeviceEnumerator->GetDefaultAudioEndpoint(EDataFlow::eRender, ERole::eCommunications, &device))) {
 		device->GetId(&defaultDevices->CommunicationPlayback);
 	}
+	else {
+		printf("No defaultDevices->CommunicationPlayback\n");
+	}
+
 	
 	if (SUCCEEDED(DeviceEnumerator->GetDefaultAudioEndpoint(EDataFlow::eCapture, ERole::eMultimedia, &device))) {
 		device->GetId(&defaultDevices->Recording);
+	}
+	else {
+		printf("No defaultDevices->Recording\n");
 	}
 	
 	if (SUCCEEDED(DeviceEnumerator->GetDefaultAudioEndpoint(EDataFlow::eCapture, ERole::eCommunications, &device))) {
 		device->GetId(&defaultDevices->CommunicationRecording);
 	}
-	
+	else {
+		printf("No defaultDevices->CommunicationRecording\n");
+	}
 }
 
 static void PopulateAllDevices(void)
 {
-	// makes object for defaultDevices
 	DefaultDevices defaultDevices;
 	GetDefaultDevices(&defaultDevices);
 
@@ -124,51 +135,36 @@ static void InitializeAndPopulateAllDevices(void)
 	int MaxDevices = 256;
 	NumDevices = 0;
 
-	// creates memory for AllDevices
 	if (AllDevices == NULL)
 		AllDevices = (Device*)VirtualAlloc(0, sizeof(Device) * MaxDevices, MEM_COMMIT, PAGE_READWRITE);
 
-	// ?
 	if (DeviceEnumerator == NULL)
 		CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&DeviceEnumerator));
 
-	// ?
 	if (PolicyConfig == NULL)
 		CoCreateInstance(__uuidof(CPolicyConfigClient), NULL, CLSCTX_ALL, __uuidof(IPolicyConfig), (LPVOID*)&PolicyConfig);
 
-	// gets list of endpoints deviceCollectionPtr with some filters 
 	IMMDeviceCollection* deviceCollectionPtr = NULL;
 	DeviceEnumerator->EnumAudioEndpoints(eAll, DEVICE_STATE_ACTIVE | DEVICE_STATE_DISABLED | DEVICE_STATE_UNPLUGGED, &deviceCollectionPtr);
 
-	// gets size of deviceCollectionPtr
 	UINT count;
 	deviceCollectionPtr->GetCount(&count);
 
-	printf("devices count: %i\n", count);
-
-	// checks if deviceCollectionPtr is too big
 	if (count > MaxDevices)
 	{
 		printf("Too many devices. Max is %i\n", MaxDevices);
 		return;
 	}
 
-	// creates an instance currDevice and gives it first device in the AllDevices list
 	Device* currDevice = AllDevices;
 
-	// stores size of collection in global variable NumDevices
 	NumDevices = count;
 
-	// hey windows, give me some objects so i can do stuff later
 	for (int i = 0; i < count; i++)
 	{
-		// select the device
 		deviceCollectionPtr->Item(i, &currDevice->Device);
-		// open PropertyStore to read name, id etc. 
 		currDevice->Device->OpenPropertyStore(STGM_READ, &currDevice->PropertyStore);
-		// give me a thing to get the volume
 		currDevice->Device->Activate(__uuidof(IAudioEndpointVolume), CLSCTX_ALL, NULL, (void**)&currDevice->AudioEndpointVolume);
-		// maybe used to change default devices
 		currDevice->Device->QueryInterface(__uuidof(IMMEndpoint), (void**)&currDevice->Endpoint);
 
 		currDevice++;
@@ -353,10 +349,24 @@ static char* BoolToString(BOOL _bool)
 
 static void PrintInfo(DeviceInfo* info)
 {
-	printf("%ls\n", info->Name);
+	printf("%ls", info->Name);
+
+	if (info->DataFlow == EDataFlow::eCapture)
+	{
+		printf(" * ");
+		printf(" ** \n");
+	}
+
+	if (info->DataFlow == EDataFlow::eRender)
+	{
+		printf(" * ");
+		printf(" ** \n");
+	}
+
 	printf("\tVolume: %f\n", info->VolumeScalar);
 	printf("\tLevel: %f\n", info->VolumeLevel);
 	printf("\tIsMute: %s\n", BoolToString(info->IsMute));
+	printf("\tState: %i\n", info->State);
 
 	char* flowString;
 	if (info->DataFlow == EDataFlow::eCapture)
@@ -366,17 +376,17 @@ static void PrintInfo(DeviceInfo* info)
 	printf("\tType: %s\n", flowString);
 
 	//TODO abstract this?
-	if (info->DataFlow == EDataFlow::eCapture)
-	{
-		printf("\tIsDefault: %s\n", BoolToString(info->IsDefaultRecording));
-		printf("\tIsDefaultCommunication: %s\n", BoolToString(info->IsDefaultCommunicationRecording));
-	}
+	//if (info->DataFlow == EDataFlow::eCapture)
+	//{
+	//	printf("\tIsDefault: %s\n", BoolToString(info->IsDefaultRecording));
+	//	printf("\tIsDefaultCommunication: %s\n", BoolToString(info->IsDefaultCommunicationRecording));
+	//}
 
-	if (info->DataFlow == EDataFlow::eRender)
-	{
-		printf("\tIsDefault: %s\n", BoolToString(info->IsDefaultPlayback));
-		printf("\tIsDefaultCommunication: %s\n", BoolToString(info->IsDefaultCommunicationPlayback));
-	}
+	//if (info->DataFlow == EDataFlow::eRender)
+	//{
+	//	printf("\tIsDefault: %s\n", BoolToString(info->IsDefaultPlayback));
+	//	printf("\tIsDefaultCommunication: %s\n", BoolToString(info->IsDefaultCommunicationPlayback));
+	//}
 
 	printf("\n");
 }
@@ -475,7 +485,7 @@ int main(int numArguments, char* arguments[])
 	
 	if (invalid)
 	{
-		printf("Unknown or missing arguments.\n\n");
+		printf("\nUnknown or missing arguments.\n\n");
 		printf(" -e\t\tEnable all playback and recording devices.\n");
 		printf(" -d\t\tDisable all playback and recording devices.\n");
 		printf(" -l\t\tList all playback and recording devices.\n");
