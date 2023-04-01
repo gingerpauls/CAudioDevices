@@ -23,7 +23,6 @@ struct DeviceInfo {
 	BOOL IsDefaultRecording;
 	BOOL IsDefaultCommunicationRecording;
 	DWORD State;
-	BOOL IsUnplugged;
 };
 
 struct Device
@@ -52,41 +51,42 @@ IPolicyConfig* PolicyConfig;
 
 static void PopulateInfo(Device* device, DefaultDevices* defaultDevices)
 {
-	//printf("POPULATE INFO\n");
-
-
 	device->Device->GetId(&device->Info.Id);
-	//device->Device->GetState(&device->Info.State);
+	device->Device->GetState(&device->Info.State);
 
-	//if (device->Info.State == DEVICE_STATE_DISABLED) {
+	if (device->Info.State == DEVICE_STATE_ACTIVE) {
+		printf("DEVICE_STATE_ACTIVE\n");
+		PROPVARIANT varProperty;
+		device->PropertyStore->GetValue(PKEY_Device_FriendlyName, &varProperty);
+		device->Info.Name = varProperty.pwszVal;
 
-	//	printf("not enabled\n");
-	//}
+		device->Endpoint->GetDataFlow(&device->Info.DataFlow);
 
-	//PROPVARIANT varProperty;
-	//device->PropertyStore->GetValue(PKEY_Device_FriendlyName, &varProperty);
-	//device->Info.Name = varProperty.pwszVal;
+		device->AudioEndpointVolume->GetMasterVolumeLevelScalar(&device->Info.VolumeScalar);
+		device->AudioEndpointVolume->GetMasterVolumeLevel(&device->Info.VolumeLevel);
+		device->AudioEndpointVolume->GetMute(&device->Info.IsMute);
 
-	//device->Endpoint->GetDataFlow(&device->Info.DataFlow);
+		if (lstrcmpW(device->Info.Id, defaultDevices->Playback) == 0)
+			device->Info.IsDefaultPlayback = TRUE;
+		if (lstrcmpW(device->Info.Id, defaultDevices->CommunicationPlayback) == 0)
+			device->Info.IsDefaultCommunicationPlayback = TRUE;
 
-	//device->AudioEndpointVolume->GetMasterVolumeLevelScalar(&device->Info.VolumeScalar);
-	//device->AudioEndpointVolume->GetMasterVolumeLevel(&device->Info.VolumeLevel);
-	//device->AudioEndpointVolume->GetMute(&device->Info.IsMute);
+		if (lstrcmpW(device->Info.Id, defaultDevices->Recording) == 0)
+			device->Info.IsDefaultRecording = TRUE;
+		if (lstrcmpW(device->Info.Id, defaultDevices->CommunicationRecording) == 0)
+			device->Info.IsDefaultCommunicationRecording = TRUE;
+	}
+		
+	if (device->Info.State == DEVICE_STATE_DISABLED)
+		printf("DEVICE_STATE_DISABLED\n");
 
-	//if (lstrcmpW(device->Info.Id, defaultDevices->Playback) == 0)
-	//	device->Info.IsDefaultPlayback = TRUE;
-	//if (lstrcmpW(device->Info.Id, defaultDevices->CommunicationPlayback) == 0)
-	//	device->Info.IsDefaultCommunicationPlayback = TRUE;
-
-	//if (lstrcmpW(device->Info.Id, defaultDevices->Recording) == 0)
-	//	device->Info.IsDefaultRecording = TRUE;
-	//if (lstrcmpW(device->Info.Id, defaultDevices->CommunicationRecording) == 0)
-	//	device->Info.IsDefaultCommunicationRecording = TRUE;
-
+	if (device->Info.State == DEVICE_STATE_UNPLUGGED)
+		printf("DEVICE_STATE_UNPLUGGED\n");
 }
 
 static void GetDefaultDevices(DefaultDevices* defaultDevices)
 {
+	
 	IMMDevice* device;
 
 	if (SUCCEEDED(DeviceEnumerator->GetDefaultAudioEndpoint(EDataFlow::eRender, ERole::eMultimedia, &device))) {
@@ -104,22 +104,18 @@ static void GetDefaultDevices(DefaultDevices* defaultDevices)
 	if (SUCCEEDED(DeviceEnumerator->GetDefaultAudioEndpoint(EDataFlow::eCapture, ERole::eCommunications, &device))) {
 		device->GetId(&defaultDevices->CommunicationRecording);
 	}
+	
 }
 
 static void PopulateAllDevices(void)
 {
 	// makes object for defaultDevices
 	DefaultDevices defaultDevices;
-
 	GetDefaultDevices(&defaultDevices);
-
-	//printf("numDevices: %i\n", NumDevices);
-	
 
 	for (int i = 0; i < NumDevices; i++)
 	{
 		PopulateInfo(&AllDevices[i], &defaultDevices);
-		printf("here\n");
 	}
 }
 
@@ -142,7 +138,7 @@ static void InitializeAndPopulateAllDevices(void)
 
 	// gets list of endpoints deviceCollectionPtr with some filters 
 	IMMDeviceCollection* deviceCollectionPtr = NULL;
-	DeviceEnumerator->EnumAudioEndpoints(eAll, DEVICE_STATE_ACTIVE | DEVICE_STATE_DISABLED, &deviceCollectionPtr);
+	DeviceEnumerator->EnumAudioEndpoints(eAll, DEVICE_STATE_ACTIVE | DEVICE_STATE_DISABLED | DEVICE_STATE_UNPLUGGED, &deviceCollectionPtr);
 
 	// gets size of deviceCollectionPtr
 	UINT count;
@@ -157,22 +153,22 @@ static void InitializeAndPopulateAllDevices(void)
 		return;
 	}
 
-	// creates an instance currDevice and gives it what?
+	// creates an instance currDevice and gives it first device in the AllDevices list
 	Device* currDevice = AllDevices;
 
 	// stores size of collection in global variable NumDevices
 	NumDevices = count;
 
-	// for each device in list, select the device, open PropertyStore, activate ??, query?
+	// hey windows, give me some objects so i can do stuff later
 	for (int i = 0; i < count; i++)
 	{
 		// select the device
 		deviceCollectionPtr->Item(i, &currDevice->Device);
-		// open PropertyStore to read volume and mute? 
+		// open PropertyStore to read name, id etc. 
 		currDevice->Device->OpenPropertyStore(STGM_READ, &currDevice->PropertyStore);
-		// activate endpoint volume 
+		// give me a thing to get the volume
 		currDevice->Device->Activate(__uuidof(IAudioEndpointVolume), CLSCTX_ALL, NULL, (void**)&currDevice->AudioEndpointVolume);
-		// name maybe?
+		// maybe used to change default devices
 		currDevice->Device->QueryInterface(__uuidof(IMMEndpoint), (void**)&currDevice->Endpoint);
 
 		currDevice++;
@@ -242,15 +238,22 @@ static bool SetDefaultDevicesWhere(ERole role, EDataFlow dataFlow, const wchar_t
 	return flag;
 }
 
-static void EnableDevices() {
-	printf("Enable Devices:\n");
-
+static void EnableDevices() 
+{
 	for (int i = 0; i < NumDevices; i++)
 	{
 		Device* device = &AllDevices[i];
 		PolicyConfig->SetEndpointVisibility(device->Info.Id, true);
 	}
-	
+}
+
+static void DisableDevices() 
+{
+	for (int i = 0; i < NumDevices; i++)
+	{
+		Device* device = &AllDevices[i];
+		PolicyConfig->SetEndpointVisibility(device->Info.Id, false);
+	}
 }
 
 static void RandomizeAllDevices()
@@ -411,6 +414,10 @@ int main(int numArguments, char* arguments[])
 		{
 			EnableDevices();
 		}
+		else if (strcmp(arguments[1], "-d") == 0)
+		{
+			DisableDevices();
+		}
 		else if (strcmp(arguments[1], "-l") == 0)
 		{
 			PrintAllDevices();
@@ -469,6 +476,8 @@ int main(int numArguments, char* arguments[])
 	if (invalid)
 	{
 		printf("Unknown or missing arguments.\n\n");
+		printf(" -e\t\tEnable all playback and recording devices.\n");
+		printf(" -d\t\tDisable all playback and recording devices.\n");
 		printf(" -l\t\tList all playback and recording devices.\n");
 		printf("\n");
 		printf(" -r\t\tRandomize mute, volume, default, and default communication devices.\n");
