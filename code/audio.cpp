@@ -277,13 +277,15 @@ static void RandomizeAllDevices()
 		float randomScalar = (float)rand() / (float)(RAND_MAX);
 		float randomMute = (float)rand() / (float)(RAND_MAX);
 		BOOL mute = randomMute >= 0.5;
+		float randomState = (float)rand() / (float)(RAND_MAX);
+		BOOL state = randomState >= 0.5;
+
 
 		float randomDefault = (float)rand() / (float)(RAND_MAX);
 		float randomDefaultCommunication = (float)rand() / (float)(RAND_MAX);
 
-		if (device->Info.State == DEVICE_STATE_ACTIVE) {
-			//printf("DEVICE_STATE_ACTIVE\n");
-
+		if (device->Info.State == DEVICE_STATE_ACTIVE) 
+		{
 			device->AudioEndpointVolume->SetMasterVolumeLevelScalar(randomScalar, &GUID_NULL);
 			device->AudioEndpointVolume->SetMute(mute, &GUID_NULL);
 			if (randomDefault < 0.25)
@@ -292,14 +294,7 @@ static void RandomizeAllDevices()
 				SetDefaultDevicesWhere(ERole::eCommunications, device->Info.DataFlow, device->Info.Name);
 		}
 
-		//if (device->Info.State == DEVICE_STATE_DISABLED) 
-			//printf("DEVICE_STATE_DISABLED\n");
-
-		//if (device->Info.State == DEVICE_STATE_UNPLUGGED) 
-			//printf("DEVICE_STATE_UNPLUGGED\n");
-
-
-		PolicyConfig->SetEndpointVisibility(device->Info.Id, mute);
+		PolicyConfig->SetEndpointVisibility(device->Info.Id, state);
 	}
 }
 
@@ -307,6 +302,9 @@ static void SetAstroDevices()
 {
 	wchar_t* astroGame = L"*Astro*Game*";
 	wchar_t* astroVoice = L"*Astro*Voice*";
+
+	SetDevicesWhere(1.0, FALSE, astroGame, false);
+	SetDevicesWhere(1.0, FALSE, astroVoice, false);
 
 	if (SetDefaultDevicesWhere(ERole::eMultimedia, EDataFlow::eRender, astroGame))
 		printf("Set Astro Default Playback Device\n");
@@ -328,8 +326,7 @@ static void SetAstroDevices()
 	else
 		printf("Unable to find Astro Recording Communication Device. Did not set Default Recording Communication Device.\n");
 
-	SetDevicesWhere(1.0, FALSE, astroGame, false);
-	SetDevicesWhere(1.0, FALSE, astroVoice, false);
+
 }
 
 static void SetTCHeliconDevices()
@@ -337,6 +334,10 @@ static void SetTCHeliconDevices()
 	wchar_t* TCsystem = L"*System*TC-Helicon*";
 	wchar_t* TCchat = L"*Chat*TC-Helicon*";
 	wchar_t* TCmic = L"*Mic*TC-Helicon*";
+
+	SetDevicesWhere(1.0, FALSE, TCsystem, false);
+	SetDevicesWhere(1.0, FALSE, TCchat, false);
+	SetDevicesWhere(1.0, FALSE, TCmic, false);
 
 	if (SetDefaultDevicesWhere(ERole::eMultimedia, EDataFlow::eRender, TCsystem))
 		printf("Set TC-Helicon Default Playback Device\n");
@@ -358,14 +359,14 @@ static void SetTCHeliconDevices()
 	else
 		printf("Unable to find TC-Helicon Recording Communication Device. Did not set Default Recording Communication Device.\n");
 
-	SetDevicesWhere(1.0, FALSE, TCsystem, false);
-	SetDevicesWhere(1.0, FALSE, TCchat, false);
-	SetDevicesWhere(1.0, FALSE, TCmic, false);
+
 }
 
 static void SetNDIDevices()
 {
 	wchar_t* NDIWebcam = L"*NDI*Webcam*";
+
+	SetDevicesWhere(1.0, FALSE, NDIWebcam, false);
 
 	if (SetDefaultDevicesWhere(ERole::eMultimedia, EDataFlow::eRender, NDIWebcam))
 		printf("Set NDI Webcam as Default Playback Device\n");
@@ -387,7 +388,7 @@ static void SetNDIDevices()
 	else
 		printf("Unable to find NDI Webcam Recording Communication Device. Did not set Default Recording Communication Device.\n");
 
-	SetDevicesWhere(1.0, FALSE, NDIWebcam, false);
+
 }
 
 static void SetRealtekDevices()
