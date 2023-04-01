@@ -54,13 +54,16 @@ static void PopulateInfo(Device* device, DefaultDevices* defaultDevices)
 	device->Device->GetId(&device->Info.Id);
 	device->Device->GetState(&device->Info.State);
 
+	PROPVARIANT varProperty;
+	device->PropertyStore->GetValue(PKEY_Device_FriendlyName, &varProperty);
+	device->Info.Name = varProperty.pwszVal;
+
+	device->Endpoint->GetDataFlow(&device->Info.DataFlow);
+
 	if (device->Info.State == DEVICE_STATE_ACTIVE) {
 		//printf("DEVICE_STATE_ACTIVE\n");
-		PROPVARIANT varProperty;
-		device->PropertyStore->GetValue(PKEY_Device_FriendlyName, &varProperty);
-		device->Info.Name = varProperty.pwszVal;
+		
 
-		device->Endpoint->GetDataFlow(&device->Info.DataFlow);
 
 		device->AudioEndpointVolume->GetMasterVolumeLevelScalar(&device->Info.VolumeScalar);
 		device->AudioEndpointVolume->GetMasterVolumeLevel(&device->Info.VolumeLevel);
@@ -82,6 +85,7 @@ static void PopulateInfo(Device* device, DefaultDevices* defaultDevices)
 	}
 	if (device->Info.State == DEVICE_STATE_UNPLUGGED) {
 		//printf("DEVICE_STATE_UNPLUGGED\n");
+
 	}
 }
 
