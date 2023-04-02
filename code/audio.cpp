@@ -80,8 +80,6 @@ static void PopulateInfo(Device* device, DefaultDevices* defaultDevices)
 
 static void GetDefaultDevices(DefaultDevices* defaultDevices)
 {
-	printf("\n");
-
 	IMMDevice* device;
 
 	if (SUCCEEDED(DeviceEnumerator->GetDefaultAudioEndpoint(EDataFlow::eRender, ERole::eMultimedia, &device))) {
@@ -516,7 +514,7 @@ static void SaveInfo(DeviceInfo* info, FILE* config)
 }
 
 static void SaveAllInfo() {
-	printf("SaveAllInfo\n");
+	printf("Saving all audio device information... \n");
 
 	FILE* config;
 	config = (fopen("D:\\CAudioDevices\\config.txt", "w"));
@@ -532,6 +530,14 @@ static void SaveAllInfo() {
 	}
 
 	fclose(config);
+
+}
+
+static void LoadInfo() {
+
+}
+
+static void LoadAllInfo() {
 
 }
 
