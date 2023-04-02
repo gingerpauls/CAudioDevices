@@ -533,11 +533,49 @@ static void SaveAllInfo() {
 
 }
 
-static void LoadInfo() {
+static void LoadInfo(DeviceInfo* info, FILE* config) {
+	
+	// enable all audio devices
+	EnableAllDevices();
+
+	// read name from file
+	char line[100];
+	wchar_t wline[100];
+	
+	fgets(line, 100, config);
+	printf(line);
+
+	//swprintf(wline, 100, line);
+	int length = mbstowcs(wline, line, 100);
+	wline[length-1] = NULL;
+
+	// check name from file to names of all audio devices
+	if (lstrcmpW(info->Name, wline + 6) == 0) {
+		//printf("match! Whoreay\n");
+
+	}
+	// if name matches, set info
+	//SetDevicesWhere();
 
 }
 
 static void LoadAllInfo() {
+	printf("Loading all audio device information... \n");
+
+	FILE* config;
+	config = (fopen("D:\\CAudioDevices\\config.txt", "r"));
+	if (config == NULL)
+	{
+		printf("Error!");
+		exit(1);
+	}
+
+	for (int i = 0; i < NumDevices; i++)
+	{
+		LoadInfo(&AllDevices[i].Info, config);
+	}
+
+	fclose(config);
 
 }
 
@@ -563,9 +601,13 @@ int main(int numArguments, char* arguments[])
 		{
 			PrintAllDevices();
 		}
-		else if (strcmp(arguments[1], "-s") == 0)
+		else if (strcmp(arguments[1], "-save") == 0)
 		{
 			SaveAllInfo();
+		}
+		else if (strcmp(arguments[1], "-load") == 0)
+		{
+			LoadAllInfo();
 		}
 		else if (strcmp(arguments[1], "-r") == 0)
 		{
@@ -632,7 +674,8 @@ int main(int numArguments, char* arguments[])
 		printf(" -l\t\tList all playback and recording devices.\n");
 		printf(" -e\t\tEnable all playback and recording devices.\n");
 		printf(" -d\t\tDisable all playback and recording devices.\n");
-		printf(" -s\t\tSave all audio device info to a file.\n");
+		printf(" -save\t\tSave all audio device info to a file.\n");
+		printf(" -load\t\tLoad all audio device info from a file.\n");
 
 		printf("\n");
 		printf(" -r\t\tRandomize mute, volume, default, and default communication devices.\n");
