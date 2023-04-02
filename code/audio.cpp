@@ -60,9 +60,8 @@ static void PopulateInfo(Device* device, DefaultDevices* defaultDevices)
 
 	device->Endpoint->GetDataFlow(&device->Info.DataFlow);
 
-	if (device->Info.State == DEVICE_STATE_ACTIVE) {
-		//printf("DEVICE_STATE_ACTIVE\n");
-
+	if (device->Info.State == DEVICE_STATE_ACTIVE) 
+	{
 		device->AudioEndpointVolume->GetMasterVolumeLevelScalar(&device->Info.VolumeScalar);
 		device->AudioEndpointVolume->GetMasterVolumeLevel(&device->Info.VolumeLevel);
 		device->AudioEndpointVolume->GetMute(&device->Info.IsMute);
@@ -76,14 +75,6 @@ static void PopulateInfo(Device* device, DefaultDevices* defaultDevices)
 			device->Info.IsDefaultRecording = TRUE;
 		if (lstrcmpW(device->Info.Id, defaultDevices->CommunicationRecording) == 0)
 			device->Info.IsDefaultCommunicationRecording = TRUE;
-	}
-		
-	if (device->Info.State == DEVICE_STATE_DISABLED) {
-		//printf("DEVICE_STATE_DISABLED\n");
-	}
-	if (device->Info.State == DEVICE_STATE_UNPLUGGED) {
-		//printf("DEVICE_STATE_UNPLUGGED\n");
-
 	}
 }
 
@@ -323,8 +314,6 @@ static void SetAstroDevices()
 		printf("Set Astro Default Recording Communication Device\n");
 	else
 		printf("Unable to find Astro Recording Communication Device. Did not set Default Recording Communication Device.\n");
-
-
 }
 
 static void SetTCHeliconDevices()
@@ -454,52 +443,42 @@ static void PrintInfo(DeviceInfo* info)
 	if (info->DataFlow == EDataFlow::eRender)
 		flowString = "Playback";
 
-	printf("%ls", info->Name);
+	int widthVeryShort = 3;
+	int widthShort = 7;
+	int widthLong = 50;
+	int precisionInt = 0;
+	int precisionFloat = 2;
 
-	if (info->DataFlow == EDataFlow::eCapture)
-	{
-		if (info->IsDefaultRecording) 
-			printf(" * ");
-		if (info->IsDefaultCommunicationRecording)
-			printf(" ** ");
+	printf("Name: %*ls", widthLong, info->Name);
+	printf("%-*s", widthVeryShort, "");
 
-		printf("\n");
+	printf("Volume: %*.*f ", widthVeryShort, precisionInt, info->VolumeScalar * 100);
+	printf("%-*s", widthVeryShort, "");
 
-		//printf("\tIsDefault: %s\n", BoolToString(info->IsDefaultRecording));
-		//printf("\tIsDefaultCommunication: %s\n", BoolToString(info->IsDefaultCommunicationRecording));
-	}
+	printf("Level: %*.*f ", widthShort-1, precisionFloat, info->VolumeLevel);
+	printf("%-*s", widthVeryShort, "");
+
+	printf("%*s ", widthShort, BoolToString(info->IsMute));
+	//printf("%-*s", widthVeryShort, "");
+
+	printf("%*s ", widthShort+4, DwordToString(info->State));
+	printf("%-*s", widthVeryShort, "");
 
 	if (info->DataFlow == EDataFlow::eRender)
 	{
 		if (info->IsDefaultPlayback)
-			printf(" * ");
+			printf("*");
 		if (info->IsDefaultCommunicationPlayback)
-			printf(" ** ");
-
-		printf("\n");
-
-		//printf("\tIsDefault: %s\n", BoolToString(info->IsDefaultPlayback));
-		//printf("\tIsDefaultCommunication: %s\n", BoolToString(info->IsDefaultCommunicationPlayback));
+			printf("**");
 	}
 
-	//printf("\tType: %s\n", flowString);
-	printf("\tScalar (Volume): %.0f\n", info->VolumeScalar * 100);
-	printf("\tLevel: %.2f\n", info->VolumeLevel);
-	printf("\t%s\n", BoolToString(info->IsMute));
-	printf("\t%s\n", DwordToString(info->State));
-
-	//TODO abstract this?
-	//if (info->DataFlow == EDataFlow::eCapture)
-	//{
-	//	printf("\tIsDefault: %s\n", BoolToString(info->IsDefaultRecording));
-	//	printf("\tIsDefaultCommunication: %s\n", BoolToString(info->IsDefaultCommunicationRecording));
-	//}
-
-	//if (info->DataFlow == EDataFlow::eRender)
-	//{
-	//	printf("\tIsDefault: %s\n", BoolToString(info->IsDefaultPlayback));
-	//	printf("\tIsDefaultCommunication: %s\n", BoolToString(info->IsDefaultCommunicationPlayback));
-	//}
+	if (info->DataFlow == EDataFlow::eCapture)
+	{
+		if (info->IsDefaultRecording)
+			printf("*");
+		if (info->IsDefaultCommunicationRecording)
+			printf("**");
+	}
 
 	printf("\n");
 }
@@ -514,7 +493,7 @@ static void PrintAllDevices()
 		PrintInfo(&AllDevices[i].Info);
 	}
 
-	printf("------------ Recording Devices ------------\n");
+	printf("\n------------ Recording Devices ------------\n");
 	for (int i = 0; i < NumDevices; i++) {
 		if (AllDevices[i].Info.DataFlow != EDataFlow::eCapture)
 			continue;
@@ -531,11 +510,15 @@ int main(int numArguments, char* arguments[])
 	wchar_t clause[100];
 	bool invalid = false;
 
-	HANDLE  hConsole;
-	int k = 9;
+	//HANDLE  hConsole;
+	//int k = 9;
 
-	hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+	//printf("before color");
+
+	//hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
 	//SetConsoleTextAttribute(hConsole, k);
+
+	//printf("after color", k);
 
 	// you can loop k higher to see more color choices
 	//for (k = 1; k < 255; k++)
@@ -639,6 +622,7 @@ int main(int numArguments, char* arguments[])
 		printf(" -TC\t\tSet Default devices to expected TC-Helicon devices.\n");
 		printf("\n* -> Default Device\n");
 		printf("** -> Default Communication Device\n");
+		printf("\n");
 	}
 
 
