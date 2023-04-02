@@ -502,6 +502,39 @@ static void PrintAllDevices()
 	}
 }
 
+static void SaveInfo(DeviceInfo* info, FILE* config)
+{
+	fprintf(config, "Name: %ls\n", info->Name);
+	fprintf(config, "Volume: %f\n", info->VolumeScalar * 100);
+	fprintf(config, "Level: %f\n", info->VolumeLevel);
+	fprintf(config, "State: %i\n", info->State);
+	fprintf(config, "DefaultPlayback: %i\n", info->IsDefaultPlayback);
+	fprintf(config, "DefaultPlaybackCommunication: %i\n", info->IsDefaultCommunicationPlayback);
+	fprintf(config, "DefaultRecording: %i\n", info->IsDefaultRecording);
+	fprintf(config, "DefaultRecordingCommunication: %i\n", info->IsDefaultCommunicationRecording);
+	fprintf(config, "\n");
+}
+
+static void SaveAllInfo() {
+	printf("SaveAllInfo\n");
+
+	FILE* config;
+	config = (fopen("D:\\CAudioDevices\\config.txt", "w"));
+	if (config == NULL)
+	{
+		printf("Error!");
+		exit(1);
+	}
+
+	for (int i = 0; i < NumDevices; i++)
+	{
+		SaveInfo(&AllDevices[i].Info, config);
+	}
+
+	fclose(config);
+
+}
+
 int main(int numArguments, char* arguments[])
 {
     CoInitialize(NULL);
@@ -509,23 +542,6 @@ int main(int numArguments, char* arguments[])
 
 	wchar_t clause[100];
 	bool invalid = false;
-
-	//HANDLE  hConsole;
-	//int k = 9;
-
-	//printf("before color");
-
-	//hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-	//SetConsoleTextAttribute(hConsole, k);
-
-	//printf("after color", k);
-
-	// you can loop k higher to see more color choices
-	//for (k = 1; k < 255; k++)
-	//{
-	//	SetConsoleTextAttribute(hConsole, k);
-	//	printf("%3d  %s\n", k, "I want to be nice today!");
-	//}
 
 	if (numArguments == 2)
 	{
@@ -540,6 +556,10 @@ int main(int numArguments, char* arguments[])
 		else if (strcmp(arguments[1], "-l") == 0)
 		{
 			PrintAllDevices();
+		}
+		else if (strcmp(arguments[1], "-s") == 0)
+		{
+			SaveAllInfo();
 		}
 		else if (strcmp(arguments[1], "-r") == 0)
 		{
@@ -606,6 +626,7 @@ int main(int numArguments, char* arguments[])
 		printf(" -l\t\tList all playback and recording devices.\n");
 		printf(" -e\t\tEnable all playback and recording devices.\n");
 		printf(" -d\t\tDisable all playback and recording devices.\n");
+		printf(" -s\t\tSave all audio device info to a file.\n");
 
 		printf("\n");
 		printf(" -r\t\tRandomize mute, volume, default, and default communication devices.\n");
