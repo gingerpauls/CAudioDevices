@@ -504,12 +504,13 @@ static void SaveInfo(DeviceInfo* info, FILE* config)
 	fprintf(config, "Name: %ls\n", info->Name);
 	fprintf(config, "VolumeScalar: %f\n", info->VolumeScalar);
 	fprintf(config, "VolumeLevel: %f\n", info->VolumeLevel);
+	fprintf(config, "Mute: %i\n", info->IsMute);
 	//fprintf(config, "DefaultPlayback: %i\n", info->IsDefaultPlayback);
 	//fprintf(config, "DefaultPlaybackCommunication: %i\n", info->IsDefaultCommunicationPlayback);
 	//fprintf(config, "DefaultRecording: %i\n", info->IsDefaultRecording);
 	//fprintf(config, "DefaultRecordingCommunication: %i\n", info->IsDefaultCommunicationRecording);
 	//fprintf(config, "State: %i\n", info->State);
-	//fprintf(config, "\n");
+	fprintf(config, "\n");
 }
 
 static void SaveAllInfo() {
@@ -538,16 +539,11 @@ static void LoadInfo(Device* device, FILE* config)
 	wchar_t wline[100];
 	float lineFloat;
 	bool lineBool;
-
-	// read line
-	// if match name -> do thing
-	// if no match -> get next line
-	// repeat until eof
+	int lineInt;
 
 	while(!feof(config)){
 
 		fgets(line, 100, config);
-		//fscanf(config, "%*s %s", line);
 		printf(line);
 
 		// convert char to wide char and remove \n
@@ -564,25 +560,32 @@ static void LoadInfo(Device* device, FILE* config)
 
 			//get config volumeScalar
 			fgets(line, 100, config);
-			//line += 14;
-			//lineFloat = atof(line + 8);
-
+			lineFloat = atof(line + 14);
 
 			if (device->Info.State == DEVICE_STATE_ACTIVE){ 
 				 
 				device->AudioEndpointVolume->SetMasterVolumeLevelScalar(lineFloat, &GUID_NULL);
 				printf("\tVolumeLevelSet\n");
 			}
-				
 
 			// get config VolumeLevel
 			fgets(line, 100, config);
-			lineFloat = atof(line + 8);
-
+			lineFloat = atof(line + 13);
 
 			if (device->Info.State == DEVICE_STATE_ACTIVE) {
 				device->AudioEndpointVolume->SetMasterVolumeLevel(lineFloat, &GUID_NULL);
-				printf("\tVolumeScalarSet\n\n");
+				printf("\tVolumeScalarSet\n");
+			}
+
+			//get config mute
+			fgets(line, 100, config);
+			//fscanf(config, "%*s %i", &lineInt);
+			lineBool = atoi(line + 6);
+			//convert to bool
+
+			if (device->Info.State == DEVICE_STATE_ACTIVE) {
+				device->AudioEndpointVolume->SetMute(lineBool, &GUID_NULL);
+				printf("\tMuteSet\n\n");
 			}
 
 			// get default playback
@@ -598,12 +601,16 @@ static void LoadInfo(Device* device, FILE* config)
 			//fgets(line, 100, config);
 			// dword to int ? 
 			//PolicyConfig->SetEndpointVisibility(device->Info.Id, line);
+
+			
+			fgets(line, 100, config);
 			//fgets(line, 100, config);
+			printf("\n");
 		}
 		else
 		{
 			// do nothing
-			printf("No match.\n");
+			printf("No match.\n\n");
 		}
 	}
 
