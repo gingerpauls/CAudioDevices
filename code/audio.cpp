@@ -25,8 +25,7 @@ struct DeviceInfo {
 	DWORD State;
 };
 
-struct Device
-{
+struct Device{
 	DeviceInfo Info;
 
 	IMMDevice* Device;
@@ -450,7 +449,7 @@ static void PrintInfo(DeviceInfo* info)
 	printf("Name: %*ls", widthLong, info->Name);
 	printf("%-*s", widthVeryShort, "");
 
-	printf("Volume: %*.*f ", widthVeryShort, precisionInt, info->VolumeScalar * 100);
+	printf("Scalar: %*.*f ", widthVeryShort, precisionInt, info->VolumeScalar * 100);
 	printf("%-*s", widthVeryShort, "");
 
 	printf("Level: %*.*f ", widthShort - 1, precisionFloat, info->VolumeLevel);
@@ -503,14 +502,14 @@ static void PrintAllDevices()
 static void SaveInfo(DeviceInfo* info, FILE* config)
 {
 	fprintf(config, "Name: %ls\n", info->Name);
-	fprintf(config, "Volume: %f\n", info->VolumeScalar);
-	fprintf(config, "Level: %f\n", info->VolumeLevel);
-	fprintf(config, "State: %i\n", info->State);
-	fprintf(config, "DefaultPlayback: %i\n", info->IsDefaultPlayback);
-	fprintf(config, "DefaultPlaybackCommunication: %i\n", info->IsDefaultCommunicationPlayback);
-	fprintf(config, "DefaultRecording: %i\n", info->IsDefaultRecording);
-	fprintf(config, "DefaultRecordingCommunication: %i\n", info->IsDefaultCommunicationRecording);
-	fprintf(config, "\n");
+	fprintf(config, "VolumeScalar: %f\n", info->VolumeScalar);
+	fprintf(config, "VolumeLevel: %f\n", info->VolumeLevel);
+	//fprintf(config, "DefaultPlayback: %i\n", info->IsDefaultPlayback);
+	//fprintf(config, "DefaultPlaybackCommunication: %i\n", info->IsDefaultCommunicationPlayback);
+	//fprintf(config, "DefaultRecording: %i\n", info->IsDefaultRecording);
+	//fprintf(config, "DefaultRecordingCommunication: %i\n", info->IsDefaultCommunicationRecording);
+	//fprintf(config, "State: %i\n", info->State);
+	//fprintf(config, "\n");
 }
 
 static void SaveAllInfo() {
@@ -533,49 +532,82 @@ static void SaveAllInfo() {
 
 }
 
-static void LoadInfo(FILE* config)
+static void LoadInfo(Device* device, FILE* config)
 {
-	Device* device = AllDevices;
-	float volumeScalar = 1;
-
 	char line[100];
 	wchar_t wline[100];
+	float lineFloat;
+	bool lineBool;
 
-	fgets(line, 100, config);
-	printf(line);
+	// read line
+	// if match name -> do thing
+	// if no match -> get next line
+	// repeat until eof
 
-	int length = mbstowcs(wline, line, 100);
-	wline[length - 1] = NULL;
+	while(!feof(config)){
 
-	// check name from file to names of all audio devices
-	if (lstrcmpW(device->Info.Name, wline + 6) == 0) 
-	{
-		printf("Match! Loading information...\n");
-
-		//volume
 		fgets(line, 100, config);
+		//fscanf(config, "%*s %s", line);
 		printf(line);
 
-		//atof(line + 8)
+		// convert char to wide char and remove \n
+		int length = mbstowcs(wline, line, 100);
+		wline[length - 1] = NULL;
 
-		for (int i = 0; i < NumDevices; i++)
+		// check name from file to names of audio device
+		if (lstrcmpW(device->Info.Name, wline + 6) == 0)
 		{
+			printf("Match!\nLoading information...\n\n");
+
 			PolicyConfig->SetEndpointVisibility(device->Info.Id, true);
 			device->Device->GetState(&device->Info.State);
 
-			if (device->Info.State == DEVICE_STATE_ACTIVE)
-			{
-				device->AudioEndpointVolume->SetMasterVolumeLevel(volumeScalar, &GUID_NULL);
-				device->AudioEndpointVolume->SetMasterVolumeLevelScalar(volumeScalar, &GUID_NULL);
-				//device->AudioEndpointVolume->SetMute(mute, &GUID_NULL);
+			//get config volumeScalar
+			fgets(line, 100, config);
+			//line += 14;
+			//lineFloat = atof(line + 8);
+
+
+			if (device->Info.State == DEVICE_STATE_ACTIVE){ 
+				 
+				device->AudioEndpointVolume->SetMasterVolumeLevelScalar(lineFloat, &GUID_NULL);
+				printf("\tVolumeLevelSet\n");
 			}
+				
+
+			// get config VolumeLevel
+			fgets(line, 100, config);
+			lineFloat = atof(line + 8);
+
+
+			if (device->Info.State == DEVICE_STATE_ACTIVE) {
+				device->AudioEndpointVolume->SetMasterVolumeLevel(lineFloat, &GUID_NULL);
+				printf("\tVolumeScalarSet\n\n");
+			}
+
+			// get default playback
+			//fgets(line, 100, config);
+
+			// get default playbackcomm
+
+			// get default recording
+
+			// get default recordingcomm
+
+			// get config state
+			//fgets(line, 100, config);
+			// dword to int ? 
+			//PolicyConfig->SetEndpointVisibility(device->Info.Id, line);
+			//fgets(line, 100, config);
 		}
-
-
+		else
+		{
+			// do nothing
+			printf("No match.\n");
+		}
 	}
-	// if name matches, set info
-	//SetDevicesWhere();
 
+	
 }
 
 static void LoadAllInfo() {
@@ -589,15 +621,13 @@ static void LoadAllInfo() {
 		exit(1);
 	}
 
-	LoadInfo(config);
-
+	for (size_t i = 0; i < NumDevices; i++) {
+		rewind(config);
+		LoadInfo(&AllDevices[i], config);
+	}
+		
+	
 	fclose(config);
-
-	// load name from all devices
-	// check name against name in config
-	// if true -> do(getline, set Audio device parameter) while getline != \n 
-	// if false -> 
-
 }
 
 int main(int numArguments, char* arguments[])
