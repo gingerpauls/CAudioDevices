@@ -29,10 +29,10 @@ struct Device
 {
 	DeviceInfo Info;
 
-    IMMDevice* Device;
-    IPropertyStore* PropertyStore;
-    IAudioEndpointVolume* AudioEndpointVolume;
-    IMMEndpoint* Endpoint;
+	IMMDevice* Device;
+	IPropertyStore* PropertyStore;
+	IAudioEndpointVolume* AudioEndpointVolume;
+	IMMEndpoint* Endpoint;
 };
 
 struct DefaultDevices {
@@ -60,7 +60,7 @@ static void PopulateInfo(Device* device, DefaultDevices* defaultDevices)
 
 	device->Endpoint->GetDataFlow(&device->Info.DataFlow);
 
-	if (device->Info.State == DEVICE_STATE_ACTIVE) 
+	if (device->Info.State == DEVICE_STATE_ACTIVE)
 	{
 		device->AudioEndpointVolume->GetMasterVolumeLevelScalar(&device->Info.VolumeScalar);
 		device->AudioEndpointVolume->GetMasterVolumeLevel(&device->Info.VolumeLevel);
@@ -102,7 +102,7 @@ static void GetDefaultDevices(DefaultDevices* defaultDevices)
 	else {
 		printf("No Default Recording Device\n");
 	}
-	
+
 	if (SUCCEEDED(DeviceEnumerator->GetDefaultAudioEndpoint(EDataFlow::eCapture, ERole::eCommunications, &device))) {
 		device->GetId(&defaultDevices->CommunicationRecording);
 	}
@@ -204,7 +204,7 @@ static void SetDevicesWhere(float volumeScalar, BOOL mute, const wchar_t* patter
 
 		if (!isMatch)
 			continue;
-		
+
 		PolicyConfig->SetEndpointVisibility(device->Info.Id, true);
 		device->Device->GetState(&device->Info.State);
 
@@ -223,7 +223,7 @@ static bool SetDefaultDevicesWhere(ERole role, EDataFlow dataFlow, const wchar_t
 	for (int i = 0; i < NumDevices; i++)
 	{
 		Device* device = &AllDevices[i];
-	
+
 		if (!match(pattern, device->Info.Name, 0, 0) || device->Info.DataFlow != dataFlow)
 			continue;
 
@@ -235,7 +235,7 @@ static bool SetDefaultDevicesWhere(ERole role, EDataFlow dataFlow, const wchar_t
 	return flag;
 }
 
-static void EnableAllDevices() 
+static void EnableAllDevices()
 {
 	for (int i = 0; i < NumDevices; i++)
 	{
@@ -244,7 +244,7 @@ static void EnableAllDevices()
 	}
 }
 
-static void DisableAllDevices() 
+static void DisableAllDevices()
 {
 	for (int i = 0; i < NumDevices; i++)
 	{
@@ -271,7 +271,7 @@ static void RandomizeAllDevices()
 		float randomDefault = (float)rand() / (float)(RAND_MAX);
 		float randomDefaultCommunication = (float)rand() / (float)(RAND_MAX);
 
-		if (device->Info.State == DEVICE_STATE_ACTIVE) 
+		if (device->Info.State == DEVICE_STATE_ACTIVE)
 		{
 			device->AudioEndpointVolume->SetMasterVolumeLevelScalar(randomScalar, &GUID_NULL);
 			device->AudioEndpointVolume->SetMute(mute, &GUID_NULL);
@@ -295,7 +295,7 @@ static void SetAstroDevices()
 
 	if (SetDefaultDevicesWhere(ERole::eMultimedia, EDataFlow::eRender, astroGame))
 		printf("Set Astro Default Playback Device\n");
-	else 
+	else
 		printf("Unable to find Astro Playback Device. Did not set Default Playback Device.\n");
 
 	if (SetDefaultDevicesWhere(ERole::eCommunications, EDataFlow::eRender, astroVoice))
@@ -453,13 +453,13 @@ static void PrintInfo(DeviceInfo* info)
 	printf("Volume: %*.*f ", widthVeryShort, precisionInt, info->VolumeScalar * 100);
 	printf("%-*s", widthVeryShort, "");
 
-	printf("Level: %*.*f ", widthShort-1, precisionFloat, info->VolumeLevel);
+	printf("Level: %*.*f ", widthShort - 1, precisionFloat, info->VolumeLevel);
 	printf("%-*s", widthVeryShort, "");
 
 	printf("%*s ", widthShort, BoolToString(info->IsMute));
 	//printf("%-*s", widthVeryShort, "");
 
-	printf("%*s ", widthShort+4, DwordToString(info->State));
+	printf("%*s ", widthShort + 4, DwordToString(info->State));
 	printf("%-*s", widthVeryShort, "");
 
 	if (info->DataFlow == EDataFlow::eRender)
@@ -503,7 +503,7 @@ static void PrintAllDevices()
 static void SaveInfo(DeviceInfo* info, FILE* config)
 {
 	fprintf(config, "Name: %ls\n", info->Name);
-	fprintf(config, "Volume: %f\n", info->VolumeScalar * 100);
+	fprintf(config, "Volume: %f\n", info->VolumeScalar);
 	fprintf(config, "Level: %f\n", info->VolumeLevel);
 	fprintf(config, "State: %i\n", info->State);
 	fprintf(config, "DefaultPlayback: %i\n", info->IsDefaultPlayback);
@@ -533,25 +533,44 @@ static void SaveAllInfo() {
 
 }
 
-static void LoadInfo(DeviceInfo* info, FILE* config) {
-	
-	// enable all audio devices
-	EnableAllDevices();
+static void LoadInfo(FILE* config)
+{
+	Device* device = AllDevices;
+	float volumeScalar = 1;
 
-	// read name from file
 	char line[100];
 	wchar_t wline[100];
-	
+
 	fgets(line, 100, config);
 	printf(line);
 
-	//swprintf(wline, 100, line);
 	int length = mbstowcs(wline, line, 100);
-	wline[length-1] = NULL;
+	wline[length - 1] = NULL;
 
 	// check name from file to names of all audio devices
-	if (lstrcmpW(info->Name, wline + 6) == 0) {
-		//printf("match! Whoreay\n");
+	if (lstrcmpW(device->Info.Name, wline + 6) == 0) 
+	{
+		printf("Match! Loading information...\n");
+
+		//volume
+		fgets(line, 100, config);
+		printf(line);
+
+		//atof(line + 8)
+
+		for (int i = 0; i < NumDevices; i++)
+		{
+			PolicyConfig->SetEndpointVisibility(device->Info.Id, true);
+			device->Device->GetState(&device->Info.State);
+
+			if (device->Info.State == DEVICE_STATE_ACTIVE)
+			{
+				device->AudioEndpointVolume->SetMasterVolumeLevel(volumeScalar, &GUID_NULL);
+				device->AudioEndpointVolume->SetMasterVolumeLevelScalar(volumeScalar, &GUID_NULL);
+				//device->AudioEndpointVolume->SetMute(mute, &GUID_NULL);
+			}
+		}
+
 
 	}
 	// if name matches, set info
@@ -570,18 +589,20 @@ static void LoadAllInfo() {
 		exit(1);
 	}
 
-	for (int i = 0; i < NumDevices; i++)
-	{
-		LoadInfo(&AllDevices[i].Info, config);
-	}
+	LoadInfo(config);
 
 	fclose(config);
+
+	// load name from all devices
+	// check name against name in config
+	// if true -> do(getline, set Audio device parameter) while getline != \n 
+	// if false -> 
 
 }
 
 int main(int numArguments, char* arguments[])
 {
-    CoInitialize(NULL);
+	CoInitialize(NULL);
 	InitializeAndPopulateAllDevices();
 
 	wchar_t clause[100];
@@ -667,7 +688,7 @@ int main(int numArguments, char* arguments[])
 	{
 		invalid = true;
 	}
-	
+
 	if (invalid)
 	{
 		printf("\nUnknown or missing arguments.\n\n");
