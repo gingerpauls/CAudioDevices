@@ -532,6 +532,79 @@ static void SaveAllInfo() {
 	fclose(config);
 }
 
+static void LoadInfo2(FILE* config)
+{
+	Device* workingDevice = NULL;
+	char line[100];
+
+	int headerLength;
+	char header[100];
+
+	wchar_t wline[100];
+	float lineFloat;
+	bool lineBool;
+	int lineInt;
+
+	while (!feof(config)) {
+		fgets(line, 100, config);
+
+		// convert char to wide char and remove \n
+		int length = mbstowcs(wline, line, 100);
+		wline[length - 1] = NULL;
+
+		for (int i = 0; i < length; i++)
+		{
+			if (line[i] != ' ')
+				header[i] = line[i];
+			else
+			{
+				header[i] = NULL;
+				break;
+			}
+		}
+
+		// if this config row is a "Name: ..."
+		// Change the working device
+		if (strcmp("Name:", header) == 0)
+		{
+			for (int i = 0; i < NumDevices; i++)
+			{
+				if (lstrcmpW(AllDevices[i].Info.Name, wline + 6) == 0)
+				{
+					workingDevice = &AllDevices[i];
+					workingDevice->Device->GetState(&workingDevice->Info.State);
+					break;
+				}
+				else
+				{
+					workingDevice = NULL;
+				}
+			}
+		}
+		
+		if (strcmp("VolumeScalar:", header) == 0)
+		{
+			lineFloat = atof(line + 14);
+			if (workingDevice->Info.State == DEVICE_STATE_ACTIVE)
+			{
+				HRESULT test = workingDevice->AudioEndpointVolume->SetMasterVolumeLevelScalar(lineFloat, &GUID_NULL);
+				if (SUCCEEDED(test))
+				{
+					printf("Set volume\n");
+				}
+				else
+				{
+					printf("Didn't set volume\n");
+				}
+			}
+			else
+			{
+
+			}
+		}
+	}
+}
+
 static void LoadInfo(Device* device, FILE* config)
 {
 	char line[100];
