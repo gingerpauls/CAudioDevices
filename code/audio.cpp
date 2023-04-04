@@ -510,7 +510,7 @@ static void SaveInfo(DeviceInfo* info, FILE* config)
 	fprintf(config, "DefaultRecording: %i\n", info->IsDefaultRecording);
 	fprintf(config, "DefaultRecordingCommunication: %i\n", info->IsDefaultCommunicationRecording);
 	fprintf(config, "State: %i\n", info->State);
-	fprintf(config, "\n");
+	//fprintf(config, "\n");
 }
 
 static void SaveAllInfo() {
