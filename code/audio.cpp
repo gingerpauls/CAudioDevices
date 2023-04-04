@@ -503,21 +503,23 @@ static void SaveInfo(DeviceInfo* info, FILE* config)
 {
 	fprintf(config, "Name: %ls\n", info->Name);
 	fprintf(config, "VolumeScalar: %f\n", info->VolumeScalar);
-	fprintf(config, "VolumeLevel: %f\n", info->VolumeLevel);
+	//fprintf(config, "VolumeLevel: %f\n", info->VolumeLevel);
 	fprintf(config, "Mute: %i\n", info->IsMute);
-	fprintf(config, "DefaultPlayback: %i\n", info->IsDefaultPlayback);
-	fprintf(config, "DefaultPlaybackCommunication: %i\n", info->IsDefaultCommunicationPlayback);
-	fprintf(config, "DefaultRecording: %i\n", info->IsDefaultRecording);
-	fprintf(config, "DefaultRecordingCommunication: %i\n", info->IsDefaultCommunicationRecording);
+	fprintf(config, "Default: %i\n", info->IsDefaultPlayback | info->IsDefaultRecording);
+	fprintf(config, "DefaultPlayback: %i\n", info->IsDefaultCommunicationPlayback | info->IsDefaultCommunicationRecording);
+	//fprintf(config, "DefaultPlayback: %i\n", info->IsDefaultPlayback);
+	//fprintf(config, "DefaultPlaybackCommunication: %i\n", info->IsDefaultCommunicationPlayback);
+	//fprintf(config, "DefaultRecording: %i\n", info->IsDefaultRecording);
+	//fprintf(config, "DefaultRecordingCommunication: %i\n", info->IsDefaultCommunicationRecording);
 	fprintf(config, "State: %i\n", info->State);
-	//fprintf(config, "\n");
+	fprintf(config, "\n");
 }
 
 static void SaveAllInfo() {
 	printf("Saving all audio device information... \n");
 
 	FILE* config;
-	config = (fopen("D:\\CAudioDevices\\config.txt", "w"));
+	config = (fopen("C:\\Workarea\\CAudioDevices\\config.txt", "w"));
 	if (config == NULL)
 	{
 		printf("Error!");
@@ -541,9 +543,6 @@ static void LoadInfo2(FILE* config)
 	char header[100];
 
 	wchar_t wline[100];
-	float lineFloat;
-	bool lineBool;
-	int lineInt;
 
 	while (!feof(config)) {
 		fgets(line, 100, config);
@@ -552,6 +551,7 @@ static void LoadInfo2(FILE* config)
 		int length = mbstowcs(wline, line, 100);
 		wline[length - 1] = NULL;
 
+		// Get string before first ' '
 		for (int i = 0; i < length; i++)
 		{
 			if (line[i] != ' ')
@@ -569,7 +569,7 @@ static void LoadInfo2(FILE* config)
 		{
 			for (int i = 0; i < NumDevices; i++)
 			{
-				if (lstrcmpW(AllDevices[i].Info.Name, wline + 6) == 0)
+				if (lstrcmpW(AllDevices[i].Info.Name, wline + strlen(header) + 1) == 0)
 				{
 					workingDevice = &AllDevices[i];
 					workingDevice->Device->GetState(&workingDevice->Info.State);
@@ -584,24 +584,36 @@ static void LoadInfo2(FILE* config)
 		
 		if (strcmp("VolumeScalar:", header) == 0)
 		{
-			lineFloat = atof(line + 14);
+			float lineFloat = atof(line + strlen(header) + 1);
 			if (workingDevice->Info.State == DEVICE_STATE_ACTIVE)
-			{
-				HRESULT test = workingDevice->AudioEndpointVolume->SetMasterVolumeLevelScalar(lineFloat, &GUID_NULL);
-				if (SUCCEEDED(test))
-				{
-					printf("Set volume\n");
-				}
-				else
-				{
-					printf("Didn't set volume\n");
-				}
-			}
-			else
-			{
-
-			}
+				workingDevice->AudioEndpointVolume->SetMasterVolumeLevelScalar(lineFloat, &GUID_NULL);
 		}
+
+		if (strcmp("Mute:", header))
+		{
+			bool lineBool = atoi(line + strlen(header) + 1);
+
+			if (workingDevice->Info.State == DEVICE_STATE_ACTIVE)
+				workingDevice->AudioEndpointVolume->SetMute(lineBool, &GUID_NULL);
+		}
+
+		if (strcmp("Default:", header))
+		{
+			bool lineBool = atoi(line + strlen(header) + 1);
+
+			if (workingDevice->Info.State == DEVICE_STATE_ACTIVE && lineBool == 1)
+				PolicyConfig->SetDefaultEndpoint(workingDevice->Info.Id, eConsole);
+		}
+
+		if (strcmp("DefaultCommunication:", header))
+		{
+			bool lineBool = atoi(line + strlen(header) + 1);
+
+			if (workingDevice->Info.State == DEVICE_STATE_ACTIVE && lineBool == 1)
+				PolicyConfig->SetDefaultEndpoint(workingDevice->Info.Id, eCommunications);
+		}
+
+
 	}
 }
 
@@ -706,17 +718,18 @@ static void LoadAllInfo() {
 	printf("Loading all audio device information... \n");
 
 	FILE* config;
-	config = (fopen("D:\\CAudioDevices\\config.txt", "r"));
+	config = (fopen("C:\\Workarea\\CAudioDevices\\config.txt", "r"));
 	if (config == NULL)
 	{
 		printf("Error!");
 		exit(1);
 	}
 
-	for (size_t i = 0; i < NumDevices; i++) {
+	/*for (size_t i = 0; i < NumDevices; i++) {
 		rewind(config);
 		LoadInfo(&AllDevices[i], config);
-	}
+	}*/
+	LoadInfo2(config);
 		
 	
 	fclose(config);
