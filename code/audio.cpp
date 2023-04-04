@@ -505,11 +505,11 @@ static void SaveInfo(DeviceInfo* info, FILE* config)
 	fprintf(config, "VolumeScalar: %f\n", info->VolumeScalar);
 	fprintf(config, "VolumeLevel: %f\n", info->VolumeLevel);
 	fprintf(config, "Mute: %i\n", info->IsMute);
-	//fprintf(config, "DefaultPlayback: %i\n", info->IsDefaultPlayback);
-	//fprintf(config, "DefaultPlaybackCommunication: %i\n", info->IsDefaultCommunicationPlayback);
-	//fprintf(config, "DefaultRecording: %i\n", info->IsDefaultRecording);
-	//fprintf(config, "DefaultRecordingCommunication: %i\n", info->IsDefaultCommunicationRecording);
-	//fprintf(config, "State: %i\n", info->State);
+	fprintf(config, "DefaultPlayback: %i\n", info->IsDefaultPlayback);
+	fprintf(config, "DefaultPlaybackCommunication: %i\n", info->IsDefaultCommunicationPlayback);
+	fprintf(config, "DefaultRecording: %i\n", info->IsDefaultRecording);
+	fprintf(config, "DefaultRecordingCommunication: %i\n", info->IsDefaultCommunicationRecording);
+	fprintf(config, "State: %i\n", info->State);
 	fprintf(config, "\n");
 }
 
@@ -530,7 +530,6 @@ static void SaveAllInfo() {
 	}
 
 	fclose(config);
-
 }
 
 static void LoadInfo(Device* device, FILE* config)
@@ -544,7 +543,7 @@ static void LoadInfo(Device* device, FILE* config)
 	while(!feof(config)){
 
 		fgets(line, 100, config);
-		printf(line);
+		//printf(line);
 
 		// convert char to wide char and remove \n
 		int length = mbstowcs(wline, line, 100);
@@ -553,64 +552,77 @@ static void LoadInfo(Device* device, FILE* config)
 		// check name from file to names of audio device
 		if (lstrcmpW(device->Info.Name, wline + 6) == 0)
 		{
-			printf("Match!\nLoading information...\n\n");
-
 			PolicyConfig->SetEndpointVisibility(device->Info.Id, true);
 			device->Device->GetState(&device->Info.State);
 
-			//get config volumeScalar
+			// volumeScalar
 			fgets(line, 100, config);
 			lineFloat = atof(line + 14);
 
-			if (device->Info.State == DEVICE_STATE_ACTIVE){ 
-				 
+			if (device->Info.State == DEVICE_STATE_ACTIVE)
 				device->AudioEndpointVolume->SetMasterVolumeLevelScalar(lineFloat, &GUID_NULL);
-				printf("\tVolumeLevelSet\n");
-			}
-
-			// get config VolumeLevel
+			
+			// VolumeLevel
 			fgets(line, 100, config);
 			lineFloat = atof(line + 13);
 
-			if (device->Info.State == DEVICE_STATE_ACTIVE) {
+			if (device->Info.State == DEVICE_STATE_ACTIVE) 
 				device->AudioEndpointVolume->SetMasterVolumeLevel(lineFloat, &GUID_NULL);
-				printf("\tVolumeScalarSet\n");
-			}
-
-			//get config mute
-			fgets(line, 100, config);
-			//fscanf(config, "%*s %i", &lineInt);
-			lineBool = atoi(line + 6);
-			//convert to bool
-
-			if (device->Info.State == DEVICE_STATE_ACTIVE) {
-				device->AudioEndpointVolume->SetMute(lineBool, &GUID_NULL);
-				printf("\tMuteSet\n\n");
-			}
-
-			// get default playback
-			//fgets(line, 100, config);
-
-			// get default playbackcomm
-
-			// get default recording
-
-			// get default recordingcomm
-
-			// get config state
-			//fgets(line, 100, config);
-			// dword to int ? 
-			//PolicyConfig->SetEndpointVisibility(device->Info.Id, line);
-
 			
+			// mute
+			fgets(line, 100, config);
+			lineBool = atoi(line + 6);
+
+			if (device->Info.State == DEVICE_STATE_ACTIVE) 
+				device->AudioEndpointVolume->SetMute(lineBool, &GUID_NULL);
+
+			// default playback
+			fgets(line, 100, config);
+			lineBool = atoi(line + 17);
+
+			if (device->Info.State == DEVICE_STATE_ACTIVE && lineBool == 1)
+				PolicyConfig->SetDefaultEndpoint(device->Info.Id, eConsole);
+
+			// default playbackcomm
+			fgets(line, 100, config);
+			lineBool = atoi(line + 30);
+
+			if (device->Info.State == DEVICE_STATE_ACTIVE && lineBool == 1)
+				PolicyConfig->SetDefaultEndpoint(device->Info.Id, eCommunications);
+			
+			// default recording
+			fgets(line, 100, config);
+			lineBool = atoi(line + 18);
+
+			if (device->Info.State == DEVICE_STATE_ACTIVE && lineBool == 1)
+				PolicyConfig->SetDefaultEndpoint(device->Info.Id, eConsole);
+
+			// default recordingcomm
+			fgets(line, 100, config);
+			lineBool = atoi(line + 31);
+
+			if (device->Info.State == DEVICE_STATE_ACTIVE && lineBool == 1)
+				PolicyConfig->SetDefaultEndpoint(device->Info.Id, eCommunications);
+
+			// state
+			fgets(line, 100, config);
+			lineInt = atoi(line + 7);
+			if (lineInt == 1)
+				PolicyConfig->SetEndpointVisibility(device->Info.Id, true);
+			if (lineInt == 2)
+				PolicyConfig->SetEndpointVisibility(device->Info.Id, false);
+			//if (lineInt == 8)
+			//	PolicyConfig->SetEndpointVisibility(device->Info.Id, true);
+
+
 			fgets(line, 100, config);
 			//fgets(line, 100, config);
-			printf("\n");
+			//printf("\n");
 		}
 		else
 		{
 			// do nothing
-			printf("No match.\n\n");
+			//printf("No match.\n\n");
 		}
 	}
 
